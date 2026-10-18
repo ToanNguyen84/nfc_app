@@ -1,32 +1,35 @@
-name: Build iOS IPA
+name: deploy_testflight
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: macos-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: 'stable'
+      
+      - name: Get dependencies
+        run: flutter pub get
 
-    - name: Set up Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.24.x'
-        channel: 'stable'
+      - name: Build unsigned iOS
+        run: flutter build ios --release --no-codesign
 
-    - name: Get dependencies
-      run: flutter pub get
+      - name: Build IPA from .app
+        run: |
+          cd build/ios/iphoneos
+          mkdir Payload
+          cp -r Runner.app Payload/
+          zip -r app-unsigned.ipa Payload
+          ls -lh
 
-    - name: Build iOS App (IPA)
-      run: |
-        flutter build ipa --release --no-codesign
-
-    - name: Upload IPA Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: ios-app-ipa
-        path: build/ios/iphoneos/*.ipa
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app-ipa
+          path: build/ios/iphoneos/app-unsigned.ipa
